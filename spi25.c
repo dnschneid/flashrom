@@ -380,6 +380,34 @@ int spi_set_extended_address(struct flashctx *const flash, const uint8_t addr_hi
 	return 0;
 }
 
+static int spi_write_die_select(struct flashctx *const flash, const uint8_t die)
+{
+	uint8_t op;
+	if (flash->chip->feature_bits & FEATURE_DUAL_DIE_C2) {
+		op = DIE_SELECT_C2;
+	} else {
+		msg_cerr("Flash missing feature flag for dual die.\n");
+		return -1;
+	}
+	const unsigned char cmd[] = { op, die };
+	const int result = spi_send_command(flash, sizeof(cmd), 0, cmd, NULL);
+	if (result)
+		msg_cerr("%s failed to select die %d\n", __func__, die);
+	return result;
+}
+
+static int spi_poll_dual_die_wip(struct flashctx *const flash, const unsigned int poll_delay)
+{
+	if (flash->chip->feature_bits & FEATURE_DUAL_DIE_C2) {
+		for (uint8_t i = 0; i < 2; i++) {
+			if (spi_write_die_select(flash, i) || spi_poll_wip(flash, poll_delay)) {
+				return -1;
+			}
+		}
+	}
+	return 0;
+}
+
 static int spi_prepare_address(struct flashctx *const flash, uint8_t cmd_buf[],
 			       const bool native_4ba, const unsigned int addr)
 {
@@ -468,19 +496,31 @@ static int spi_write_cmd(struct flashctx *const flash, const uint8_t op,
 static int spi_chip_erase_60(struct flashctx *flash)
 {
 	/* This usually takes 1-85s, so wait in 1s steps. */
-	return spi_simple_write_cmd(flash, JEDEC_CE_60, 1000 * 1000);
+	int ret = spi_simple_write_cmd(flash, JEDEC_CE_60, 1000 * 1000);
+	if (ret) {
+		return ret;
+	}
+	return spi_poll_dual_die_wip(flash, 1000 * 1000);
 }
 
 static int spi_chip_erase_62(struct flashctx *flash)
 {
 	/* This usually takes 2-5s, so wait in 100ms steps. */
-	return spi_simple_write_cmd(flash, JEDEC_CE_62, 100 * 1000);
+	int ret = spi_simple_write_cmd(flash, JEDEC_CE_62, 100 * 1000);
+	if (ret) {
+		return ret;
+	}
+	return spi_poll_dual_die_wip(flash, 100 * 1000);
 }
 
 static int spi_chip_erase_c7(struct flashctx *flash)
 {
 	/* This usually takes 1-85s, so wait in 1s steps. */
-	return spi_simple_write_cmd(flash, JEDEC_CE_C7, 1000 * 1000);
+	int ret = spi_simple_write_cmd(flash, JEDEC_CE_C7, 1000 * 1000);
+	if (ret) {
+		return ret;
+	}
+	return spi_poll_dual_die_wip(flash, 100 * 1000);
 }
 
 int spi_block_erase_52(struct flashctx *flash, unsigned int addr,

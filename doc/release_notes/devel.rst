@@ -104,6 +104,13 @@ Note there are still some remaining cases for non-spi chips,
 when ``--noverify`` is ignored, more details and disussion
 is here: https://ticket.coreboot.org/issues/605
 
+Dual die chip support
+----------------------
+
+Some flash chips are made up of multiple stacked die and require issuing a die
+select command in specific situations. flashrom now handles these, enabling
+support for dual-die chips such as W25Q01JV that pop up in the future.
+
 New programmers
 ===============
 

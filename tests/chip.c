@@ -166,6 +166,30 @@ static const struct flashchip chip_no_erase = {
 	},
 };
 
+/* Chip expected to be processed with dummyflasher, so using real op functions. */
+static const struct flashchip chip_dual_die = {
+	.vendor		= "aklm&dummyflasher",
+	.total_size	= 16 * 1024,
+	.tested		= TEST_OK_PREW,
+	.read		= SPI_CHIP_READ,
+	.write		= SPI_CHIP_WRITE256,
+	.page_size	= 256,
+	.feature_bits   = FEATURE_DUAL_DIE_C2,
+	.block_erasers  =
+	{
+		{
+			.eraseblocks = { {4 * 1024, 4096} },
+			.block_erase = SPI_BLOCK_ERASE_20,
+		}, {
+			.eraseblocks = { {64 * 1024, 256} },
+			.block_erase = SPI_BLOCK_ERASE_D8,
+		}, {
+			.eraseblocks = { {16 * 1024 * 1024, 1} },
+			.block_erase = SPI_BLOCK_ERASE_60,
+		}
+	},
+};
+
 /* Setup the struct for W25Q128.V, all values come from flashchips.c */
 static const struct flashchip chip_W25Q128_V = {
 	.vendor		= "aklm&dummyflasher",
@@ -617,6 +641,83 @@ void write_chip_feature_no_erase_with_progress(void **state)
 	free(newcontents);
 }
 
+void write_chip_feature_dual_die(void **state)
+{
+	(void) state; /* unused */
+
+	static struct io_mock_fallback_open_state data = {
+		.noc	= 0,
+		.paths	= { NULL },
+	};
+	const struct io_mock chip_io = {
+		.fallback_open_state = &data,
+	};
+
+	struct flashrom_flashctx flashctx = { 0 };
+	struct flashrom_layout *layout;
+
+	/*
+	 * Tricking the dummyflasher by asking to emulate W25Q128FV but giving to it
+	 * mock chip with FEATURE_DUAL_DIE.
+	 * As long as chip size is the same, this is fine.
+	 */
+	struct flashchip mock_chip = chip_dual_die;
+	const char *param_dup = "bus=spi,emulate=W25Q128FV";
+
+	setup_chip(&flashctx, &layout, &mock_chip, param_dup, &chip_io);
+
+	const char *const filename = "-";
+	unsigned long size = mock_chip.total_size * 1024;
+	uint8_t *const newcontents = malloc(size);
+	assert_non_null(newcontents);
+
+	printf("Write chip operation started.\n");
+	assert_int_equal(0, read_buf_from_file(newcontents, size, filename));
+	assert_int_equal(0, flashrom_image_write(&flashctx, newcontents, size, NULL));
+	assert_int_equal(0, flashrom_image_verify(&flashctx, newcontents, size));
+	printf("Write chip operation done.\n");
+
+	teardown(&layout);
+
+	free(newcontents);
+}
+
+void read_chip_feature_dual_die(void **state)
+{
+	(void) state; /* unused */
+
+	static struct io_mock_fallback_open_state data = {
+		.noc	= 0,
+		.paths	= { NULL },
+	};
+	const struct io_mock chip_io = {
+		.fallback_open_state = &data,
+	};
+
+	struct flashrom_flashctx flashctx = { 0 };
+	struct flashrom_layout *layout;
+	/*
+	 * Tricking the dummyflasher by asking to emulate W25Q128FV but giving to it
+	 * mock chip with FEATURE_DUAL_DIE.
+	 * As long as chip size is the same, this is fine.
+	 */
+	struct flashchip mock_chip = chip_dual_die;
+	const char *param_dup = "bus=spi,emulate=W25Q128FV";
+
+	setup_chip(&flashctx, &layout, &mock_chip, param_dup, &chip_io);
+
+	unsigned long size = mock_chip.total_size * 1024;
+	unsigned char *buf = calloc(size, sizeof(unsigned char));
+	assert_non_null(buf);
+
+	printf("Read chip operation started.\n");
+	assert_int_equal(0, flashrom_image_read(&flashctx, buf, size));
+	printf("Read chip operation done.\n");
+
+	teardown(&layout);
+
+	free(buf);
+}
 
 void write_nonaligned_region_with_dummyflasher_test_success(void **state)
 {

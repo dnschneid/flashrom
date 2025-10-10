@@ -48,6 +48,7 @@ int spi_write_chunked(struct flashctx *flash, const uint8_t *buf, unsigned int s
 int spi_enter_4ba(struct flashctx *flash);
 int spi_exit_4ba(struct flashctx *flash);
 int spi_set_extended_address(struct flashctx *, uint8_t addr_high);
+int spi_select_die(struct flashctx *const flash, const unsigned int addr);
 
 
 /* spi25_statusreg.c */
