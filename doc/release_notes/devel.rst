@@ -30,6 +30,7 @@ Added support
 * MT35XU02G
 * MX25U12873F
 * P25D80H
+* W25Q01JV
 * W35T02NW
 
 New features
