@@ -168,6 +168,11 @@ enum write_granularity {
  */
 #define FEATURE_FLASH_HARDENING (1 << 26)
 
+/*
+ * Whether the chip consists of two die that need selecting
+ */
+#define FEATURE_DUAL_DIE    (1 << 27)
+
 #define ERASED_VALUE(flash)	(((flash)->chip->feature_bits & FEATURE_ERASED_ZERO) ? 0x00 : 0xff)
 #define UNERASED_VALUE(flash)	(((flash)->chip->feature_bits & FEATURE_ERASED_ZERO) ? 0xff : 0x00)
 
@@ -606,6 +611,7 @@ struct flashrom_flashctx {
 	 */
 	int address_high_byte;
 	bool in_4ba_mode;
+	int selected_die;
 
 	int chip_restore_fn_count;
 	struct chip_restore_func_data {

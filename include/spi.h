@@ -190,6 +190,9 @@
 #define JEDEC_READ_EXT_ADDR_REG		0xC8
 #define ALT_READ_EXT_ADDR_REG_16	0x16
 
+/* Die Select for multi-die packages */
+#define DIE_SELECT_C2		0xC2
+
 /* Read the memory */
 #define JEDEC_READ		0x03
 #define JEDEC_READ_OUTSIZE	0x04

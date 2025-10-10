@@ -380,9 +380,40 @@ int spi_set_extended_address(struct flashctx *const flash, const uint8_t addr_hi
 	return 0;
 }
 
+static int spi_write_die_select(struct flashctx *const flash, const uint8_t die)
+{
+	uint8_t op;
+	if (flash->chip->feature_bits & FEATURE_DUAL_DIE) {
+		op = DIE_SELECT_C2;
+	} else {
+		msg_cerr("Flash missing feature flag for dual die.\n");
+		return -1;
+	}
+	const unsigned char cmd[] = { op, die };
+	const int result = spi_send_command(flash, sizeof(cmd), 0, cmd, NULL);
+	if (result)
+		msg_cerr("%s failed to select die %d\n", __func__, die);
+	return result;
+}
+
+int spi_select_die(struct flashctx *const flash, const unsigned int addr)
+{
+	if (flash->chip->feature_bits & FEATURE_DUAL_DIE) {
+		int die = addr >= flash->chip->total_size * 512;
+		if (flash->selected_die != die && spi_write_die_select(flash, die))
+			return -1;
+		flash->selected_die = die;
+	}
+	return 0;
+}
+
 static int spi_prepare_address(struct flashctx *const flash, uint8_t cmd_buf[],
 			       const bool native_4ba, const unsigned int addr)
 {
+	if (spi_select_die(flash, addr)) {
+		msg_cerr("Failed to select die.\n");
+		return -1;
+	}
 	if (native_4ba || flash->in_4ba_mode) {
 		if (!spi_master_4ba(flash)) {
 			msg_cwarn("4-byte address requested but master can't handle 4-byte addresses.\n");

@@ -1922,6 +1922,7 @@ int prepare_flash_access(struct flashctx *const flash,
 
 	flash->address_high_byte = -1;
 	flash->in_4ba_mode = false;
+	flash->selected_die = -1;
 
 	/* Be careful about 4BA chips and broken masters */
 	if (flash->chip->total_size > 16 * 1024 && spi_master_no_4ba_modes(flash)) {
